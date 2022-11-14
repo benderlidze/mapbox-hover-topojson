@@ -86,6 +86,9 @@
 
             // When the user moves their mouse over the state-fill layer, we'll update the
             // feature state for the feature under the mouse.
+            map.on('click', 'state-fills', (e) => {
+                console.log('e.features', e.features);
+            });
             map.on('mousemove', 'state-fills', (e) => {
                 if (e.features.length > 0) {
                     if (hoveredStateId !== null) {
