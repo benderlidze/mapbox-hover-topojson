@@ -84,11 +84,40 @@
                 }
             });
 
-            // When the user moves their mouse over the state-fill layer, we'll update the
-            // feature state for the feature under the mouse.
+
+            const popup = new mapboxgl.Popup({
+                closeButton: false,
+                closeOnClick: false
+            });
+
             map.on('click', 'state-fills', (e) => {
                 console.log('e.features', e.features);
             });
+
+            map.on('mousemove', 'state-fills', (e) => {
+                // Change the cursor style as a UI indicator.
+                map.getCanvas().style.cursor = 'pointer';
+
+                // Copy coordinates array.
+                const coordinates = e.features[0].geometry.coordinates.slice();
+                const props = e.features[0].properties;
+                const text = `
+                    <div>
+                        <div>County:${props['County']}</div>
+                        <div>CountyName:${props['CountyName']}</div>
+                        <div>OBJECTID:${props['OBJECTID']}</div>
+                        <div>PrecCode:${props['PrecCode']}</div>
+                        <div>Shape__Are:${props['Shape__Are']}</div>
+                        <div>Shape__Len:${props['Shape__Len']}</div>
+                    </div>
+                    `
+                // Populate the popup and set its coordinates
+                // based on the feature found.
+                popup.setLngLat(e.lngLat).setHTML(text).addTo(map);
+            });
+
+
+
             map.on('mousemove', 'state-fills', (e) => {
                 if (e.features.length > 0) {
                     if (hoveredStateId !== null) {
@@ -115,7 +144,11 @@
                     );
                 }
                 hoveredStateId = null;
+
+                map.getCanvas().style.cursor = '';
+                popup.remove();
             });
+
         });
     </script>
 
