@@ -53,17 +53,9 @@
                     el.id = key
                 });
 
-
-                // if (county !== null) {
-                //     const filtered =
-                //         { type: 'FeatureCollection', features: neighborhoods.features.filter(d => d.properties.CountyName.toLowerCase() === county.toLocaleLowerCase) }
-                // }
-
-                const collection = county !== null
+                const collection = county !== null //filter by URL params 
                     ? { type: 'FeatureCollection', features: neighborhoods.features.filter(d => d.properties.CountyName.toLowerCase() === county.toLocaleLowerCase()) }
                     : neighborhoods
-
-                console.log('collection', collection);
 
                 map.getSource('states').setData(collection)
             })
