@@ -9,6 +9,7 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.10.0/mapbox-gl.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://d3js.org/topojson.v1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
     <style>
         body {
@@ -31,6 +32,10 @@
 
         const param = new URLSearchParams(window.location.search);
         const county = param.get('county');
+        const mainData = {
+            states: [],
+            counties: []
+        }
 
         mapboxgl.accessToken = 'pk.eyJ1Ijoic2VyZ2JlciIsImEiOiJja3dwOWgzeGQwYWdyMm9xb2pkMDFvYmNuIn0.H9AJ_NLmDNYMed6dvu_Q0A';
         const map = new mapboxgl.Map({
@@ -51,10 +56,8 @@
                 states.features.forEach((el, key) => {
                     el.id = key
                 });
-                const collection = county !== null //filter by URL params 
-                    ? { type: 'FeatureCollection', features: states.features.filter(d => d.properties.CountyName.toLowerCase() === county.toLocaleLowerCase()) }
-                    : states
-                map.getSource('states').setData(collection)
+                mainData.states.push(...states.features)
+                map.getSource('states').setData(states)
             })
 
 
@@ -65,6 +68,8 @@
                 neighborhoods.features.forEach((el, key) => {
                     el.id = key
                 });
+
+                mainData.counties.push(...neighborhoods.features)
 
                 const collection = county !== null //filter by URL params 
                     ? { type: 'FeatureCollection', features: neighborhoods.features.filter(d => d.properties.CountyName.toLowerCase() === county.toLocaleLowerCase()) }
@@ -87,8 +92,8 @@
                     'fill-opacity': [
                         'case',
                         ['boolean', ['feature-state', 'hover'], false],
-                        1,
-                        0.5
+                        0.8,
+                        0.3
                     ]
                 }
             });
@@ -113,7 +118,9 @@
                 'id': 'county-fills',
                 'type': 'fill',
                 'source': 'counties',
-                'layout': {},
+                'layout': {
+                    // visibility: "none"
+                },
                 'paint': {
                     'fill-color': '#627BC1',
                     'fill-opacity': [
@@ -128,7 +135,9 @@
                 'id': 'county-borders',
                 'type': 'line',
                 'source': 'counties',
-                'layout': {},
+                'layout': {
+                    // visibility: "none"
+                },
                 'paint': {
                     'line-color': '#627BC1',
                     'line-width': 1
@@ -141,8 +150,48 @@
                 closeOnClick: false
             });
 
+            map.on('click', 'states-fills', (e) => {
+
+                const id = e.features[0].id
+                const poly = mainData.states.find(d => d.id === id)
+                const bbox = turf.bbox(poly)
+                map.fitBounds(bbox, { padding: 100 })
+
+
+                console.log('poly', poly);
+            });
+            map.on('mousemove', 'states-fills', (e) => {
+                if (e.features.length > 0) {
+                    if (hoveredStateId !== null) {
+                        map.setFeatureState(
+                            { source: 'states', id: hoveredStateId },
+                            { hover: false }
+                        );
+                    }
+                    hoveredStateId = e.features[0].id;
+                    map.setFeatureState(
+                        { source: 'states', id: hoveredStateId },
+                        { hover: true }
+                    );
+                }
+            });
+            map.on('mouseleave', 'states-fills', () => {
+                if (hoveredStateId !== null) {
+                    map.setFeatureState(
+                        { source: 'states', id: hoveredStateId },
+                        { hover: false }
+                    );
+                }
+                hoveredStateId = null;
+                map.getCanvas().style.cursor = '';
+                popup.remove();
+            });
+
+
+
             map.on('click', 'county-fills', (e) => {
                 console.log('e.features', e.features);
+                tur
             });
             map.on('mousemove', 'county-fills', (e) => {
                 // Change the cursor style as a UI indicator.
@@ -190,7 +239,6 @@
                     );
                 }
                 hoveredStateId = null;
-
                 map.getCanvas().style.cursor = '';
                 popup.remove();
             });
