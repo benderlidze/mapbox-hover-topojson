@@ -46,6 +46,7 @@
             zoom: 3.6
         });
         let hoveredStateId = null;
+        let hoveredCountyId = null;
 
 
         map.on('load', () => {
@@ -55,15 +56,16 @@
                 const states = topojson.feature(data, data.objects.gz_2010_us_040_00_20m)
                 states.features.forEach((el, key) => {
                     el.id = key
+                    el.properties.id = key
                 });
                 mainData.states.push(...states.features)
                 map.getSource('states').setData(states)
             })
 
 
-            fetch('topojson.json').then(data => data.json()).then(data => {
+            fetch('Statewide_Precincts.json').then(data => data.json()).then(data => {
                 console.log('data', data);
-                const neighborhoods = topojson.feature(data, data.objects[1])
+                const neighborhoods = topojson.feature(data, data.objects['Statewide_Precincts'])
                 console.log('neighborhoods', neighborhoods);
                 neighborhoods.features.forEach((el, key) => {
                     el.id = key
@@ -108,8 +110,6 @@
                 }
             });
 
-
-
             map.addSource('counties', {
                 'type': 'geojson',
                 'data': { type: 'FeatureCollection', features: Array(0) }
@@ -119,30 +119,30 @@
                 'type': 'fill',
                 'source': 'counties',
                 'layout': {
-                    // visibility: "none"
+                    visibility: "none"
                 },
                 'paint': {
                     'fill-color': '#627BC1',
                     'fill-opacity': [
                         'case',
                         ['boolean', ['feature-state', 'hover'], false],
-                        1,
+                        0.3,
                         0.5
                     ]
                 }
             });
-            map.addLayer({
-                'id': 'county-borders',
-                'type': 'line',
-                'source': 'counties',
-                'layout': {
-                    // visibility: "none"
-                },
-                'paint': {
-                    'line-color': '#627BC1',
-                    'line-width': 1
-                }
-            });
+            // map.addLayer({
+            //     'id': 'county-borders',
+            //     'type': 'line',
+            //     'source': 'counties',
+            //     'layout': {
+            //         visibility: "none"
+            //     },
+            //     'paint': {
+            //         'line-color': '#627BC1',
+            //         'line-width': 1
+            //     }
+            // });
 
 
             const popup = new mapboxgl.Popup({
@@ -153,12 +153,28 @@
             map.on('click', 'states-fills', (e) => {
 
                 const id = e.features[0].id
+                const props = e.features[0]
                 const poly = mainData.states.find(d => d.id === id)
                 const bbox = turf.bbox(poly)
                 map.fitBounds(bbox, { padding: 100 })
 
-
                 console.log('poly', poly);
+
+                map.setPaintProperty(
+                    'states-fills',
+                    'fill-opacity',
+                    ['match', ['get', 'id'], id, 0, 0.5]
+                );
+
+                map.once("idle", () => {
+                    if (props.properties.NAME === "Washington") {
+                        map.setLayoutProperty("county-fills", "visibility", "visible")
+                    } else {
+                        map.setLayoutProperty("county-fills", "visibility", "none")
+                    }
+                })
+
+
             });
             map.on('mousemove', 'states-fills', (e) => {
                 if (e.features.length > 0) {
@@ -174,6 +190,17 @@
                         { hover: true }
                     );
                 }
+
+                // Copy coordinates array.
+                const coordinates = e.features[0].geometry.coordinates.slice();
+                const props = e.features[0].properties;
+                const text = `
+                    <div>
+                        <div>${props['NAME']}</div>
+                    </div>
+                    `
+                popup.setLngLat(e.lngLat).setHTML(text).addTo(map);
+
             });
             map.on('mouseleave', 'states-fills', () => {
                 if (hoveredStateId !== null) {
@@ -191,7 +218,7 @@
 
             map.on('click', 'county-fills', (e) => {
                 console.log('e.features', e.features);
-                tur
+
             });
             map.on('mousemove', 'county-fills', (e) => {
                 // Change the cursor style as a UI indicator.
@@ -216,15 +243,15 @@
             });
             map.on('mousemove', 'county-fills', (e) => {
                 if (e.features.length > 0) {
-                    if (hoveredStateId !== null) {
+                    if (hoveredCountyId !== null) {
                         map.setFeatureState(
-                            { source: 'counties', id: hoveredStateId },
+                            { source: 'counties', id: hoveredCountyId },
                             { hover: false }
                         );
                     }
-                    hoveredStateId = e.features[0].id;
+                    hoveredCountyId = e.features[0].id;
                     map.setFeatureState(
-                        { source: 'counties', id: hoveredStateId },
+                        { source: 'counties', id: hoveredCountyId },
                         { hover: true }
                     );
                 }
@@ -232,13 +259,13 @@
             // When the mouse leaves the state-fill layer, update the feature state of the
             // previously hovered feature.
             map.on('mouseleave', 'county-fills', () => {
-                if (hoveredStateId !== null) {
+                if (hoveredCountyId !== null) {
                     map.setFeatureState(
-                        { source: 'counties', id: hoveredStateId },
+                        { source: 'counties', id: hoveredCountyId },
                         { hover: false }
                     );
                 }
-                hoveredStateId = null;
+                hoveredCountyId = null;
                 map.getCanvas().style.cursor = '';
                 popup.remove();
             });
