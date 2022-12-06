@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Add a polygon to a map using a GeoJSON source</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.11.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.11.0/mapbox-gl.js"></script>
+    <script src="https://d3js.org/topojson.v1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        #nav {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="nav"></div>
+    <div id="map"></div>
+    <script>
+        const navDiv = document.getElementById("nav")
+        const mainData = {
+            states: [],
+            counties: [],
+            precincts: []
+        }
+        const hoverStates = {
+            hoveredStateId: null,
+            hoveredCountyId: null,
+            hoveredPrecinctId: null,
+        }
+
+        mapboxgl.accessToken = 'pk.eyJ1Ijoic3VqYW5jaGFrcmFib3J0eSIsImEiOiJja2Q5MzBuc3owenplMnBzY2I0eDYwdDhvIn0.imItePLDlYNF2BGVde_mkw';
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/streets-v11',
+            center: { lng: -97.60198440026875, lat: 42.47164493569497 },
+            zoom: 3.6
+        });
+
+        map.on('load', () => {
+            Promise.all([
+                fetch('states.json').then(d => d.json()),
+                fetch('counties.json').then(d => d.json()), //
+                fetch('Statewide_Precincts.json').then(d => d.json()),
+            ]).then(data => {
+
+                console.log('data', data);
+
+                const states = topojson.feature(data[0], data[0].objects.gz_2010_us_040_00_20m)
+                states.features.forEach((el, key) => {
+                    el.id = key
+                    el.properties.id = key
+                });
+                mainData.states.push(...states.features)
+                map.getSource('states').setData(states)
+
+                const counties = topojson.feature(data[1], data[1].objects.gz_2010_us_050_00_5m)
+                counties.features.forEach((el, key) => {
+                    el.id = key
+                    el.properties.id = key
+                });
+                mainData.counties.push(...counties.features)
+                map.getSource('counties').setData(counties)
+
+                const precincts = topojson.feature(data[2], data[2].objects.Statewide_Precincts)
+                precincts.features.forEach((el, key) => {
+                    el.id = key
+                    el.properties.id = key
+                });
+                mainData.precincts.push(...precincts.features)
+                map.getSource('precincts').setData(precincts)
+
+
+            })
+
+            map.addSource('states', {
+                'type': 'geojson',
+                'data': { type: 'FeatureCollection', features: Array(0) }
+            });
+            map.addLayer({
+                'id': 'states-fills',
+                'type': 'fill',
+                'source': 'states',
+                'layout': {},
+                'paint': {
+                    'fill-color': '#627BC1',
+                    'fill-opacity': [
+                        'case',
+                        ['boolean', ['feature-state', 'hover'], false],
+                        0.8,
+                        0.3
+                    ]
+                }
+            });
+            // map.addLayer({
+            //     'id': 'states-borders',
+            //     'type': 'line',
+            //     'source': 'states',
+            //     'layout': {},
+            //     'paint': {
+            //         'line-color': '#627BC1',
+            //         'line-width': 1
+            //     }
+            // });
+
+            map.addSource('counties', {
+                'type': 'geojson',
+                'data': { type: 'FeatureCollection', features: Array(0) }
+            });
+            map.addLayer({
+                'id': 'county-fills',
+                'type': 'fill',
+                'source': 'counties',
+                // 'layout': {
+                //     visibility: "visible"
+                // },
+                'paint': {
+                    'fill-color': 'green',
+                    'fill-opacity': [
+                        'case',
+                        ['boolean', ['feature-state', 'hover'], false],
+                        0.3,
+                        0.5
+                    ]
+                }
+            });
+
+            map.addSource('precincts', {
+                'type': 'geojson',
+                'data': { type: 'FeatureCollection', features: Array(0) }
+            });
+            map.addLayer({
+                'id': 'precincts-fills',
+                'type': 'fill',
+                'source': 'precincts',
+                // 'layout': {
+                //     visibility: "visible"
+                // },
+                'paint': {
+                    'fill-color': 'red',
+                    'fill-opacity': [
+                        'case',
+                        ['boolean', ['feature-state', 'hover'], false],
+                        0.3,
+                        0.5
+                    ]
+                }
+            });
+
+            map.setFilter('county-fills', ['==', 'STATE', '']);
+            map.setFilter('precincts-fills', ['==', 'County', '']);
+
+            const popup = new mapboxgl.Popup({
+                closeButton: false,
+                closeOnClick: false
+            });
+
+            map.on('click', 'states-fills', (e) => {
+                const id = e.features[0].id
+                const props = e.features[0]
+                const poly = mainData.states.find(d => d.id === id)
+                const bbox = turf.bbox(poly)
+                map.fitBounds(bbox, { padding: 100 })
+                console.log('props', props);
+                // map.setPaintProperty(
+                //     'states-fills',
+                //     'fill-opacity',
+                //     ['match', ['get', 'id'], id, 0, 0.5]
+                // );
+
+                console.log('props.properties.STATE', props.properties);
+
+
+                map.setFilter('states-fills', ['!=', 'STATE', props.properties.STATE]);
+                map.setFilter('county-fills', ['==', 'STATE', props.properties.STATE]);
+                map.setFilter('precincts-fills', ['==', 'County', ""]);
+            });
+
+            map.on('click', 'county-fills', (e) => {
+                const id = e.features[0].id
+                const props = e.features[0].properties
+                const poly = mainData.counties.find(d => d.id === id)
+                const bbox = turf.bbox(poly)
+                map.fitBounds(bbox, { padding: 100 })
+                // map.setPaintProperty(
+                //     'states-fills',
+                //     'fill-opacity',
+                //     ['match', ['get', 'id'], id, 0, 0.5]
+                // );
+                const precinctID = props.STATE + props.COUNTY;
+                // map.setFilter('county-fills', ['==', 'STATE', props.STATE]);
+                map.setFilter('county-fills', ['all', ['==', 'STATE', props.STATE], ['!=', 'COUNTY', props.COUNTY]]);
+                map.setFilter('precincts-fills', ['==', 'County', precinctID]);
+            })
+
+            map.on('mousemove', 'states-fills', (e) => { mousemove(e, 'hoveredStateId', "states") })
+            map.on('mouseleave', 'states-fills', (e) => { mouseleave('hoveredStateId', "states") })
+
+            map.on('mousemove', 'county-fills', (e) => { mousemove(e, 'hoveredCountyId', "counties") })
+            map.on('mouseleave', 'county-fills', (e) => { mouseleave('hoveredCountyId', "counties") })
+
+            map.on('mousemove', 'precincts-fills', (e) => { mousemove(e, 'hoveredPrecinctId', "precincts", 'OBJECTID') })
+            map.on('mouseleave', 'precincts-fills', (e) => { mouseleave('hoveredPrecinctId', "precincts") })
+
+            function mousemove(e, hoverID, source, popupFieldName) {
+
+                console.log('hoverStates[hoverID]', source, hoverStates[hoverID]);
+                if (e.features.length > 0) {
+                    if (hoverStates[hoverID] !== null) {
+                        map.setFeatureState(
+                            { source: source, id: hoverStates[hoverID] },
+                            { hover: false }
+                        );
+                    }
+                    hoverStates[hoverID] = e.features[0].id;
+                    map.setFeatureState(
+                        { source: source, id: hoverStates[hoverID] },
+                        { hover: true }
+                    );
+                }
+                // Copy coordinates array.
+                const coordinates = e.features[0].geometry.coordinates.slice();
+                const props = e.features[0].properties;
+                const def = popupFieldName ? props[popupFieldName] : props['NAME']
+                const text = `
+                    <div>
+                        <div>${def}</div>
+                    </div>
+                    `
+                popup.setLngLat(e.lngLat).setHTML(text).addTo(map);
+            }
+
+            function mouseleave(hoverID, source) {
+                if (hoverStates[hoverID] !== null) {
+                    map.setFeatureState(
+                        { source: source, id: hoverStates[hoverID] },
+                        { hover: false }
+                    );
+                }
+                hoverStates[hoverID] = null;
+                map.getCanvas().style.cursor = '';
+                popup.remove();
+            }
+        });
+
+
+    </script>
+
+</body>
+
+</html>
