@@ -209,6 +209,12 @@
                 // map.setFilter('county-fills', ['==', 'STATE', props.STATE]);
                 map.setFilter('county-fills', ['all', ['==', 'STATE', props.STATE], ['!=', 'COUNTY', props.COUNTY]]);
                 map.setFilter('precincts-fills', ['==', 'County', precinctID]);
+
+                fetch("https://www.yellowvanhandyman.com/Partners/mapjson.aspx?c=53001")
+                    .then(data => data.json())
+                    .then(json => {
+                        console.log('json', json);
+                    })
             })
 
             map.on('mousemove', 'states-fills', (e) => { mousemove(e, 'hoveredStateId', "states") })
@@ -222,7 +228,8 @@
 
             function mousemove(e, hoverID, source, popupFieldName) {
 
-                console.log('hoverStates[hoverID]', source, hoverStates[hoverID]);
+                //console.log('hoverStates[hoverID]', source, hoverStates[hoverID]);
+                console.log('hoverStates[hoverID]', e.features[0].properties);
                 if (e.features.length > 0) {
                     if (hoverStates[hoverID] !== null) {
                         map.setFeatureState(
