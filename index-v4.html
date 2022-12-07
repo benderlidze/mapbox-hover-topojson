@@ -84,6 +84,7 @@
                 precincts.features.forEach((el, key) => {
                     el.id = key
                     el.properties.id = key
+                    el.properties.color = "orange"
                 });
                 mainData.precincts.push(...precincts.features)
                 map.getSource('precincts').setData(precincts)
@@ -155,7 +156,7 @@
                 //     visibility: "visible"
                 // },
                 'paint': {
-                    'fill-color': 'red',
+                    'fill-color': ['get', 'color'],
                     'fill-opacity': [
                         'case',
                         ['boolean', ['feature-state', 'hover'], false],
@@ -187,8 +188,6 @@
                 // );
 
                 console.log('props.properties.STATE', props.properties);
-
-
                 map.setFilter('states-fills', ['!=', 'STATE', props.properties.STATE]);
                 map.setFilter('county-fills', ['==', 'STATE', props.properties.STATE]);
                 map.setFilter('precincts-fills', ['==', 'County', ""]);
@@ -210,10 +209,26 @@
                 map.setFilter('county-fills', ['all', ['==', 'STATE', props.STATE], ['!=', 'COUNTY', props.COUNTY]]);
                 map.setFilter('precincts-fills', ['==', 'County', precinctID]);
 
-                fetch("https://www.yellowvanhandyman.com/Partners/mapjson.aspx?c=53001")
+
+                fetch(`https://www.hotfeetfitness.com/mapjson.aspx?c=${precinctID}`)
                     .then(data => data.json())
                     .then(json => {
                         console.log('json', json);
+
+                        if (json.length === 0) return;
+
+                        mainData.precincts.forEach((el, key) => {
+
+                            const code = el.properties.PrecCode
+                            const p = json.find(d => String(d.p) === String(code))
+
+                            if (p && +p.e === 1) {
+                                el.properties.color = "#38a1f3"
+                            }
+                        });
+
+                        map.getSource('precincts').setData(turf.featureCollection(mainData.precincts))
+
                     })
             })
 
@@ -223,13 +238,13 @@
             map.on('mousemove', 'county-fills', (e) => { mousemove(e, 'hoveredCountyId', "counties") })
             map.on('mouseleave', 'county-fills', (e) => { mouseleave('hoveredCountyId', "counties") })
 
-            map.on('mousemove', 'precincts-fills', (e) => { mousemove(e, 'hoveredPrecinctId', "precincts", 'OBJECTID') })
+            map.on('mousemove', 'precincts-fills', (e) => { mousemove(e, 'hoveredPrecinctId', "precincts", 'PrecCode') })
             map.on('mouseleave', 'precincts-fills', (e) => { mouseleave('hoveredPrecinctId', "precincts") })
 
             function mousemove(e, hoverID, source, popupFieldName) {
 
                 //console.log('hoverStates[hoverID]', source, hoverStates[hoverID]);
-                console.log('hoverStates[hoverID]', e.features[0].properties);
+                // console.log('hoverStates[hoverID]', e.features[0].properties);
                 if (e.features.length > 0) {
                     if (hoverStates[hoverID] !== null) {
                         map.setFeatureState(
