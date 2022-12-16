@@ -165,9 +165,21 @@
                     ]
                 }
             });
+            map.addLayer({
+                'id': 'precincts-borders',
+                'type': 'line',
+                'source': 'precincts',
+                'layout': {},
+                'paint': {
+                    'line-color': '#6c310a',
+                    'line-width': 0.5
+                }
+            });
+
 
             map.setFilter('county-fills', ['==', 'STATE', '']);
             map.setFilter('precincts-fills', ['==', 'County', '']);
+            map.setFilter('precincts-borders', ['==', 'County', '']);
 
             const popup = new mapboxgl.Popup({
                 closeButton: false,
@@ -191,6 +203,7 @@
                 map.setFilter('states-fills', ['!=', 'STATE', props.properties.STATE]);
                 map.setFilter('county-fills', ['==', 'STATE', props.properties.STATE]);
                 map.setFilter('precincts-fills', ['==', 'County', ""]);
+                map.setFilter('precincts-borders', ['==', 'County', ""]);
             });
 
             map.on('click', 'county-fills', (e) => {
@@ -208,43 +221,41 @@
                 // map.setFilter('county-fills', ['==', 'STATE', props.STATE]);
                 map.setFilter('county-fills', ['all', ['==', 'STATE', props.STATE], ['!=', 'COUNTY', props.COUNTY]]);
                 map.setFilter('precincts-fills', ['==', 'County', precinctID]);
-
+                map.setFilter('precincts-borders', ['==', 'County', precinctID]);
 
                 fetch(`https://www.hotfeetfitness.com/mapjson.aspx?c=${precinctID}`)
                     .then(data => data.json())
                     .then(json => {
                         console.log('json', json);
-
                         if (json.length === 0) return;
-
                         mainData.precincts.forEach((el, key) => {
-
                             const code = el.properties.PrecCode
                             const p = json.find(d => String(d.p) === String(code))
-
                             if (p && +p.e === 1) {
-                                el.properties.color = "#38a1f3"
+                                el.properties.color = "#38a1f3";
+                                el.properties.officerName = p.o
+                            } else {
+                                el.properties.officerName = ""
                             }
                         });
-
                         map.getSource('precincts').setData(turf.featureCollection(mainData.precincts))
-
                     })
             })
 
-            map.on('mousemove', 'states-fills', (e) => { mousemove(e, 'hoveredStateId', "states") })
+            map.on('mousemove', 'states-fills', (e) => { mousemove(e, 'hoveredStateId', ["states"]) })
             map.on('mouseleave', 'states-fills', (e) => { mouseleave('hoveredStateId', "states") })
 
-            map.on('mousemove', 'county-fills', (e) => { mousemove(e, 'hoveredCountyId', "counties") })
+            map.on('mousemove', 'county-fills', (e) => { mousemove(e, 'hoveredCountyId', ["counties"]) })
             map.on('mouseleave', 'county-fills', (e) => { mouseleave('hoveredCountyId', "counties") })
 
-            map.on('mousemove', 'precincts-fills', (e) => { mousemove(e, 'hoveredPrecinctId', "precincts", 'PrecCode') })
+            map.on('mousemove', 'precincts-fills', (e) => { mousemove(e, 'hoveredPrecinctId', "precincts", ['PrecCode', 'officerName']) })
             map.on('mouseleave', 'precincts-fills', (e) => { mouseleave('hoveredPrecinctId', "precincts") })
 
-            function mousemove(e, hoverID, source, popupFieldName) {
+            function mousemove(e, hoverID, source, popupFieldName = []) {
 
                 //console.log('hoverStates[hoverID]', source, hoverStates[hoverID]);
-                // console.log('hoverStates[hoverID]', e.features[0].properties);
+                //console.log('hoverStates[hoverID]', e.features[0].properties);
+
                 if (e.features.length > 0) {
                     if (hoverStates[hoverID] !== null) {
                         map.setFeatureState(
@@ -261,7 +272,12 @@
                 // Copy coordinates array.
                 const coordinates = e.features[0].geometry.coordinates.slice();
                 const props = e.features[0].properties;
-                const def = popupFieldName ? props[popupFieldName] : props['NAME']
+                //const def = popupFieldName ? props[popupFieldName] : props['NAME']
+
+                const def = popupFieldName.length > 0 ? popupFieldName.map(d => {
+                    return `<div>${props[d]}</div>`
+                }).join("") : props['NAME']
+
                 const text = `
                     <div>
                         <div>${def}</div>
