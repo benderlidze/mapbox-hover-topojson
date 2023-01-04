@@ -59,7 +59,7 @@
             Promise.all([
                 fetch('states.json').then(d => d.json()),
                 fetch('counties.json').then(d => d.json()), //
-                fetch('Statewide_Precincts.json').then(d => d.json()),
+                // fetch('Statewide_Precincts.json').then(d => d.json()),
             ]).then(data => {
 
                 console.log('data', data);
@@ -80,14 +80,14 @@
                 mainData.counties.push(...counties.features)
                 map.getSource('counties').setData(counties)
 
-                const precincts = topojson.feature(data[2], data[2].objects.Statewide_Precincts)
-                precincts.features.forEach((el, key) => {
-                    el.id = key
-                    el.properties.id = key
-                    el.properties.color = "orange"
-                });
-                mainData.precincts.push(...precincts.features)
-                map.getSource('precincts').setData(precincts)
+                // const precincts = topojson.feature(data[2], data[2].objects.Statewide_Precincts)
+                // precincts.features.forEach((el, key) => {
+                //     el.id = key
+                //     el.properties.id = key
+                //     el.properties.color = "orange"
+                // });
+                // mainData.precincts.push(...precincts.features)
+                // map.getSource('precincts').setData(precincts)
 
 
             })
@@ -198,8 +198,33 @@
                 //     'fill-opacity',
                 //     ['match', ['get', 'id'], id, 0, 0.5]
                 // );
-
                 console.log('props.properties.STATE', props.properties);
+
+                const stateName = props.properties.NAME ? props.properties.NAME.toLowerCase() : false
+                console.log('stateName', stateName);
+
+                if (stateName) {
+
+                    fetch(`states-topojson/${stateName}.json`)
+                        .then(d => d.json())
+                        .then(data => {
+                            console.log('data', data);
+                            const precincts = topojson.feature(data, data.objects.Statewide_Precincts)
+                            precincts.features.forEach((el, key) => {
+                                el.id = key
+                                el.properties.id = key
+                                el.properties.color = "orange"
+
+                                //ADD COUNTY ID IF EMPTY 
+                                if (!el.properties.County) {
+                                    el.properties.County = el.properties.STATE + el.properties.COUNTY
+                                }
+                            });
+                            mainData.precincts.push(...precincts.features)
+                            map.getSource('precincts').setData(precincts)
+                        })
+                }
+
                 map.setFilter('states-fills', ['!=', 'STATE', props.properties.STATE]);
                 map.setFilter('county-fills', ['==', 'STATE', props.properties.STATE]);
                 map.setFilter('precincts-fills', ['==', 'County', ""]);
@@ -212,12 +237,8 @@
                 const poly = mainData.counties.find(d => d.id === id)
                 const bbox = turf.bbox(poly)
                 map.fitBounds(bbox, { padding: 100 })
-                // map.setPaintProperty(
-                //     'states-fills',
-                //     'fill-opacity',
-                //     ['match', ['get', 'id'], id, 0, 0.5]
-                // );
                 const precinctID = props.STATE + props.COUNTY;
+                console.log('precinctID', precinctID);
                 // map.setFilter('county-fills', ['==', 'STATE', props.STATE]);
                 map.setFilter('county-fills', ['all', ['==', 'STATE', props.STATE], ['!=', 'COUNTY', props.COUNTY]]);
                 map.setFilter('precincts-fills', ['==', 'County', precinctID]);
