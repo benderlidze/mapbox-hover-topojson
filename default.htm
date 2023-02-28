@@ -218,9 +218,9 @@
 
                                 //ADD COUNTY ID IF EMPTY 
                                 if (!el.properties.County) {
-                                    el.properties.County = el.properties.STATE + el.properties.COUNTY
+                                    el.properties.County = el.properties.STATEFP20 + el.properties.COUNTYFP20
                                 }
-
+                                console.log('County', el.properties.County);
                                 el.properties.County = String(el.properties.County)//convert value to string 
                             });
                             mainData.precincts.push(...precincts.features)
