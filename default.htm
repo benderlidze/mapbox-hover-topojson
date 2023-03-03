@@ -259,7 +259,7 @@
                         console.log('json', json);
                         if (json.length === 0) return;
                         mainData.precincts.forEach((el, key) => {
-                            const code = el.properties.PrecCode
+                            const code = el.properties.VTDST20
                             const p = json.find(d => String(d.p) === String(code))
                             if (p && +p.e === 1) {
                                 el.properties.color = "#FFFFFF"; //Exists: white
@@ -278,7 +278,7 @@
             map.on('mousemove', 'county-fills', (e) => { mousemove(e, 'hoveredCountyId', ["counties"]) })
             map.on('mouseleave', 'county-fills', (e) => { mouseleave('hoveredCountyId', "counties") })
 
-            map.on('mousemove', 'precincts-fills', (e) => { mousemove(e, 'hoveredPrecinctId', "precincts", ['PrecCode', 'officerName']) })
+            map.on('mousemove', 'precincts-fills', (e) => { mousemove(e, 'hoveredPrecinctId', "precincts", ['VTDST20', 'officerName']) })
             map.on('mouseleave', 'precincts-fills', (e) => { mouseleave('hoveredPrecinctId', "precincts") })
 
             function mousemove(e, hoverID, source, popupFieldName = []) {
